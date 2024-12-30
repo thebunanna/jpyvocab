@@ -1,0 +1,5 @@
+Requires .env with OPEN_API_KEY
+Run `import.py` to initialize database.
+
+Modify import.py to look for a csv (`n5_randomized.csv`)
+The csv should be of `vocab`, `hira`, `translation`
