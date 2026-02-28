@@ -5,14 +5,27 @@ import signal
 import sys
 import pykakasi
 from jamdict import Jamdict
-from engine import get_next, get_parsed_str, get_detailed, review_card
+from engine import Engine, get_parsed_str, get_detailed
+from audio import play_text
+from translate import translate_text
 import textwrap
+import time
 
 
 kks = pykakasi.kakasi()
 jam = Jamdict()
-
+engine = Engine()
 import curses
+
+def link(uri, label=None):
+    if label is None: 
+        label = uri
+    parameters = ''
+
+    # OSC 8 ; params ; URI ST <name> OSC 8 ;; ST 
+    escape_mask = '\033]8;{};{}\033\\{}\033]8;;\033\\'
+
+    return escape_mask.format(parameters, uri, label)
 
 def main(stdscr):
     curses.curs_set(1)  # Show the cursor
@@ -27,7 +40,7 @@ def main(stdscr):
         curses.init_pair(i, i, -1)
     
     while True: 
-        text, card, info = get_next()    
+        text, card, info = engine.get_next()    
         
         t_str, comp_str = get_parsed_str(text)
         hira_str, kata_str = t_str
@@ -77,19 +90,22 @@ def main(stdscr):
 
         ind = 0
         max_ind = len (detailed) - 1
-        
+        play_text(text)
         key = None
         while True:
             if key == curses.KEY_RIGHT:
                 ind += 1
             elif key == curses.KEY_LEFT:
                 ind -= 1
+            elif key == ord('r'):
+                play_text(text)
             elif key is not None and (key >= 48 and key <= 51):
                 score = key - 47
-                review_card(card, info['id'], score)
+                engine.review_card(card, info['id'], score)
                 break
-            
-            
+            elif key == ord('b'):
+                engine.ban_word(comp_str_split[ind])
+                        
             ind = max(0, min(ind, max_ind))
             stdscr.clear()
 
@@ -104,14 +120,19 @@ def main(stdscr):
                     break
                 stdscr.addstr(idx + 1, 0, line)
                 
-            # stats here
+            stats = [
+                f"{text}",
+                translate_text(text),
+                f"Input : {input_str.split(' ')[ind]}",
+                f"Actual: {hira_str.split(' ')[ind]}, {kata_str.split(' ')[ind]}",
+                f"Banned: {comp_str_split[ind] in engine.banned}",
+                "----------------------",
+                f"{info['word']} : {info['translated']} : {info['hira']}",
+                f"rep - {card.scheduled_days} : state - {card.state}"
+            ]
             
-            stdscr.addstr(0, maxw//2, f"{text}")
-            stdscr.addstr(1, maxw//2, f"Input : {input_str.split(' ')[ind]}")
-            stdscr.addstr(2, maxw//2, f"Actual: {hira_str.split(' ')[ind]}, {kata_str.split(' ')[ind]}")
-            stdscr.addstr(3, maxw//2, "----------------------")
-            stdscr.addstr(4, maxw//2, f"{info['word']} : {info['translated']} : {info['hira']}")
-            stdscr.addstr(5, maxw//2, f"rep - {card.scheduled_days} : state - {card.state}")
+            for idx, line in enumerate(stats):
+                stdscr.addstr(idx, maxw//2, line)
                 
             stdscr.addstr(maxh - 1, 0, "[<-] [->] [ESC] [0 - Again] [1 - Hard] [2 - Good] [3 - Easy]")
             stdscr.refresh()

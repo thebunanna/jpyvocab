@@ -39,3 +39,7 @@ unidic==1.1.0
 urllib3==2.3.0
 wasabi==0.10.1
 wrapt==1.16.0
+Flask==3.0.0
+Flask-CORS==4.0.0
+google-cloud-texttospeech==2.24.0
+google-cloud-translate==3.19.0
